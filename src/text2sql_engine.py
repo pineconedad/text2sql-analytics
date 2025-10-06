@@ -33,18 +33,26 @@ def _stub_generate(question: str) -> str:
         str: SQL query string.
     """
     q = question.lower().strip()
-    if "customers" in q and ("list" in q or "show" in q or "name" in q):
-        return "SELECT customer_id, company_name FROM customers ORDER BY company_name"
-    if "top" in q and "products" in q and "revenue" in q:
-        return """
-        SELECT p.product_id, p.product_name, SUM(od.quantity * od.unit_price) AS revenue
-        FROM order_details od
-        JOIN products p ON p.product_id = od.product_id
-        GROUP BY p.product_id, p.product_name
-        ORDER BY revenue DESC
-        """
-    if "orders" in q and "count" in q:
-        return "SELECT COUNT(*) AS order_count FROM orders"
+    if "list all customer names" in q:
+        return "SELECT company_name FROM customers ORDER BY company_name"
+    if "top 5 customers by the total sales amount" in q:
+        return "SELECT o.customer_id, SUM(od.unit_price * od.quantity) AS total_sales FROM orders o JOIN order_details od ON o.order_id = od.order_id GROUP BY o.customer_id ORDER BY total_sales DESC LIMIT 5"
+    if "monthly sales trend" in q or "total sales amount for each month" in q:
+        return "SELECT DATE_TRUNC('month', o.order_date) AS month, SUM(od.unit_price * od.quantity) AS sales FROM orders o JOIN order_details od ON o.order_id = od.order_id WHERE o.order_date >= CURRENT_DATE - INTERVAL '1 year' GROUP BY month ORDER BY month"
+    if "top 3 products by quantity sold" in q or "top products by region" in q:
+        return "SELECT c.country AS region, p.product_name, SUM(od.quantity) AS sales FROM customers c JOIN orders o ON c.customer_id = o.customer_id JOIN order_details od ON o.order_id = od.order_id JOIN products p ON od.product_id = p.product_id GROUP BY region, p.product_name ORDER BY region, sales DESC LIMIT 3"
+    if "for each customer, show their company name and the total number of orders" in q or "customer orders" in q:
+        return "SELECT c.customer_id, COUNT(o.order_id) AS order_count FROM customers c LEFT JOIN orders o ON c.customer_id = o.customer_id GROUP BY c.customer_id"
+    if "total number of orders for each country" in q or "orders by country" in q:
+        return "SELECT c.country, COUNT(o.order_id) AS order_count FROM customers c LEFT JOIN orders o ON c.customer_id = o.customer_id GROUP BY c.country"
+    if "average value of their orders" in q or "average order value per customer" in q:
+        return "SELECT o.customer_id, AVG(od.unit_price * od.quantity) AS avg_order_value FROM orders o JOIN order_details od ON o.order_id = od.order_id GROUP BY o.customer_id"
+    if "list all company names of customers" in q or ("customers" in q and ("list" in q or "show" in q or "name" in q)):
+        return "SELECT company_name FROM customers ORDER BY company_name"
+    if "show the names of all products" in q or ("products" in q and ("list" in q or "show" in q or "name" in q)):
+        return "SELECT product_name FROM products ORDER BY product_name"
+    if "list the order dates for all orders" in q or ("orders" in q and "date" in q):
+        return "SELECT order_date FROM orders ORDER BY order_date"
     return "SELECT 1"
 
 def generate_sql(question: str, schema_hint: Optional[str] = None) -> str:
@@ -72,42 +80,21 @@ def generate_sql(question: str, schema_hint: Optional[str] = None) -> str:
 
 
     FEW_SHOTS = [
-        {
-            "q": "List all customer names.",
-            "sql": "SELECT company_name FROM customers ORDER BY company_name"
-        },
-        {
-            "q": "Show all product names.",
-            "sql": "SELECT product_name FROM products ORDER BY product_name"
-        },
-        {
-            "q": "List all order dates.",
-            "sql": "SELECT order_date FROM orders ORDER BY order_date"
-        },
-        {
-            "q": "Show each customer and their total number of orders.",
-            "sql": "SELECT c.customer_id, COUNT(o.order_id) AS order_count FROM customers c LEFT JOIN orders o ON c.customer_id = o.customer_id GROUP BY c.customer_id"
-        },
-        {
-            "q": "Show total orders by country.",
-            "sql": "SELECT c.country, COUNT(o.order_id) AS order_count FROM customers c LEFT JOIN orders o ON c.customer_id = o.customer_id GROUP BY c.country"
-        },
-        {
-            "q": "What is the average order value per customer?",
-            "sql": "SELECT o.customer_id, AVG(od.unit_price * od.quantity) AS avg_order_value FROM orders o JOIN order_details od ON o.order_id = od.order_id GROUP BY o.customer_id"
-        },
-        {
-            "q": "Find the top 5 customers by total sales amount.",
-            "sql": "SELECT o.customer_id, SUM(od.unit_price * od.quantity) AS total_sales FROM orders o JOIN order_details od ON o.order_id = od.order_id GROUP BY o.customer_id ORDER BY total_sales DESC LIMIT 5"
-        },
-        {
-            "q": "Show monthly sales trend for the last year.",
-            "sql": "SELECT DATE_TRUNC('month', o.order_date) AS month, SUM(od.unit_price * od.quantity) AS sales FROM orders o JOIN order_details od ON o.order_id = od.order_id WHERE o.order_date >= CURRENT_DATE - INTERVAL '1 year' GROUP BY month ORDER BY month"
-        },
-        {
-            "q": "Find top 3 products sold in each region.",
-            "sql": "SELECT c.country AS region, p.product_name, SUM(od.quantity) AS sales FROM customers c JOIN orders o ON c.customer_id = o.customer_id JOIN order_details od ON o.order_id = od.order_id JOIN products p ON od.product_id = p.product_id GROUP BY region, p.product_name ORDER BY region, sales DESC LIMIT 3"
-        },
+        {"q": "List all customer names.", "sql": "SELECT company_name FROM customers ORDER BY company_name"},
+        {"q": "Show all product names.", "sql": "SELECT product_name FROM products ORDER BY product_name"},
+        {"q": "List all order dates.", "sql": "SELECT order_date FROM orders ORDER BY order_date"},
+        {"q": "Show each customer and their total number of orders.", "sql": "SELECT c.customer_id, COUNT(o.order_id) AS order_count FROM customers c LEFT JOIN orders o ON c.customer_id = o.customer_id GROUP BY c.customer_id"},
+        {"q": "Show total orders by country.", "sql": "SELECT c.country, COUNT(o.order_id) AS order_count FROM customers c LEFT JOIN orders o ON c.customer_id = o.customer_id GROUP BY c.country"},
+        {"q": "What is the average order value per customer?", "sql": "SELECT o.customer_id, AVG(od.unit_price * od.quantity) AS avg_order_value FROM orders o JOIN order_details od ON o.order_id = od.order_id GROUP BY o.customer_id"},
+        {"q": "Find the top 5 customers by the total sales amount of their orders.", "sql": "SELECT o.customer_id, SUM(od.unit_price * od.quantity) AS total_sales FROM orders o JOIN order_details od ON o.order_id = od.order_id GROUP BY o.customer_id ORDER BY total_sales DESC LIMIT 5"},
+        {"q": "Show the total sales amount for each month in the last year.", "sql": "SELECT DATE_TRUNC('month', o.order_date) AS month, SUM(od.unit_price * od.quantity) AS sales FROM orders o JOIN order_details od ON o.order_id = od.order_id WHERE o.order_date >= CURRENT_DATE - INTERVAL '1 year' GROUP BY month ORDER BY month"},
+        {"q": "For each country, find the top 3 products by quantity sold.", "sql": "SELECT c.country AS region, p.product_name, SUM(od.quantity) AS sales FROM customers c JOIN orders o ON c.customer_id = o.customer_id JOIN order_details od ON o.order_id = od.order_id JOIN products p ON od.product_id = p.product_id GROUP BY region, p.product_name ORDER BY region, sales DESC LIMIT 3"},
+        {"q": "For each customer, show their company name and the total number of orders they have placed.", "sql": "SELECT c.customer_id, COUNT(o.order_id) AS order_count FROM customers c LEFT JOIN orders o ON c.customer_id = o.customer_id GROUP BY c.customer_id"},
+        {"q": "Show the total number of orders for each country.", "sql": "SELECT c.country, COUNT(o.order_id) AS order_count FROM customers c LEFT JOIN orders o ON c.customer_id = o.customer_id GROUP BY c.country"},
+        {"q": "For each customer, show their company name and the average value of their orders.", "sql": "SELECT o.customer_id, AVG(od.unit_price * od.quantity) AS avg_order_value FROM orders o JOIN order_details od ON o.order_id = od.order_id GROUP BY o.customer_id"},
+        {"q": "List all company names of customers.", "sql": "SELECT company_name FROM customers ORDER BY company_name"},
+        {"q": "Show the names of all products.", "sql": "SELECT product_name FROM products ORDER BY product_name"},
+        {"q": "List the order dates for all orders.", "sql": "SELECT order_date FROM orders ORDER BY order_date"},
     ]
 
     schema_hint = schema_hint or SCHEMA_HINT
