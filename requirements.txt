@@ -1,0 +1,11 @@
+python-dotenv
+pandas
+openpyxl
+numpy
+psycopg2-binary
+SQLAlchemy
+google-generativeai
+pytest
+pytest-cov
+fastapi
+uvicorn

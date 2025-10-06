@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+
+# Environments
+.env
+.venv/
+*.env
+
+# OS
+.DS_Store
+
+# Coverage & reports
+htmlcov/
+.coverage
+*.log
+
+# Notebooks cache
+.ipynb_checkpoints/
+
+# Docker
+*.pid
+
