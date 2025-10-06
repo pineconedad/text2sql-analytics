@@ -18,6 +18,7 @@ END$$;
 GRANT CONNECT ON DATABASE northwind TO readonly;
 GRANT USAGE ON SCHEMA public TO readonly;
 -- any future tables get SELECT by default
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO readonly;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO readonly;
 """
 
