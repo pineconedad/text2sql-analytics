@@ -6,7 +6,9 @@ from pathlib import Path
 import os, pathlib
 
 load_dotenv()
-engine = create_engine(os.getenv("DATABASE_URL"), pool_pre_ping=True)
+from src.utils import require_env
+url = require_env("DATABASE_URL")
+engine = create_engine(url, pool_pre_ping=True)
 
 # ---------- helpers ----------
 def read_csv_safe(path: str) -> pd.DataFrame:

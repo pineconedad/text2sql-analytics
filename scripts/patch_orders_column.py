@@ -1,9 +1,11 @@
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 import os
+from src.utils import require_env
 
 load_dotenv()
-e = create_engine(os.getenv("DATABASE_URL"), pool_pre_ping=True)
+url = require_env("DATABASE_URL")
+e = create_engine(url, pool_pre_ping=True)
 
 SQL = """
 -- if orders has ship_via but not shipper_id: rename

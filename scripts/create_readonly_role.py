@@ -1,9 +1,11 @@
 from sqlalchemy import create_engine, text
 import os
 from dotenv import load_dotenv
+from src.utils import require_env
 
 load_dotenv()
-engine = create_engine(os.getenv("DATABASE_URL"), pool_pre_ping=True)
+url = require_env("DATABASE_URL")
+engine = create_engine(url, pool_pre_ping=True)
 
 SQL = """
 DO $$
