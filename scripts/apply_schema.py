@@ -1,3 +1,8 @@
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Now 'src' should be importable
+from src.utils import require_env
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 import os, pathlib
