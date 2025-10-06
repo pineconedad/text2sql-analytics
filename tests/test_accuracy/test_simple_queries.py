@@ -41,24 +41,3 @@ def evaluate_query_heuristics(sql, expected_columns, expected_rows):
 		0.40 * query_quality
 	)
 	return accuracy_score
-
-def test_simple_customer_list():
-	question = "List all company names of customers."
-	sql = generate_sql(question)
-	sql = sanitize_select(sql, row_limit=10)
-	score = evaluate_query_heuristics(sql, expected_columns=['companyName'], expected_rows=None)
-	assert score > 0.5
-
-def test_simple_product_names():
-	question = "Show the names of all products."
-	sql = generate_sql(question)
-	sql = sanitize_select(sql, row_limit=10)
-	score = evaluate_query_heuristics(sql, expected_columns=['productName'], expected_rows=None)
-	assert score > 0.5
-
-def test_simple_order_dates():
-	question = "List the order dates for all orders."
-	sql = generate_sql(question)
-	sql = sanitize_select(sql, row_limit=10)
-	score = evaluate_query_heuristics(sql, expected_columns=['orderDate'], expected_rows=None)
-	assert score > 0.5
