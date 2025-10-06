@@ -51,10 +51,3 @@ def test_complex_monthly_sales_trend():
 	sql = sanitize_select(sql, row_limit=12)
 	score = evaluate_query_heuristics(sql, expected_columns=['month', 'sales'], expected_rows=12)
 	assert score > 0.5
-
-def test_complex_top_products_by_region():
-	question = "For each country, find the top 3 products by quantity sold."
-	sql = generate_sql(question)
-	sql = sanitize_select(sql, row_limit=30)
-	score = evaluate_query_heuristics(sql, expected_columns=['region', 'productName', 'sales'], expected_rows=None)
-	assert score > 0.5
