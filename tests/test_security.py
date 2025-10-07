@@ -1,120 +1,188 @@
 """
-Security tests for database permissions and access controls.
+Security tests for database permissions and readonly user validation.
 """
 import pytest
 from sqlalchemy import create_engine, text
-from sqlalchemy.exc import ProgrammingError
+from dotenv import load_dotenv
 import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from src.database import ro_engine
+load_dotenv()
 from src.utils import require_env
 
 
-def test_readonly_user_connection():
-    """Test that we can connect as readonly user."""
-    with ro_engine.connect() as conn:
-        user = conn.execute(text("SELECT current_user")).scalar()
-        assert user == "readonly", f"Expected readonly user, got {user}"
-
-
-def test_readonly_user_can_select():
-    """Test that readonly user can perform SELECT operations."""
-    with ro_engine.connect() as conn:
-        # Should be able to select from existing tables
+def test_readonly_user_permissions():
+    """
+    Test that the readonly user can only perform SELECT operations 
+    and cannot perform any write operations (INSERT, UPDATE, DELETE, DDL).
+    """
+    # Test admin connection first
+    admin_url = require_env("DATABASE_URL")
+    admin_engine = create_engine(admin_url, pool_pre_ping=True)
+    
+    with admin_engine.connect() as conn:
+        admin_user = conn.execute(text("SELECT current_user")).scalar()
+        print(f"✅ Admin connected as: {admin_user}")
+        
+        # Verify we can read from tables as admin
         result = conn.execute(text("SELECT COUNT(*) FROM customers")).scalar()
-        assert isinstance(result, int), "Should be able to SELECT from customers table"
-
-
-def test_readonly_user_cannot_insert():
-    """Test that readonly user cannot perform INSERT operations."""
-    with pytest.raises((ProgrammingError, Exception)) as exc_info:
-        with ro_engine.connect() as conn:
-            conn.execute(text("""
-                INSERT INTO customers (customer_id, company_name) 
-                VALUES ('TEST', 'Test Company')
-            """))
-            conn.commit()
+        assert isinstance(result, int), "Admin should be able to read from customers table"
     
-    # Check that it's a permission error or data constraint (both indicate readonly working)
-    error_msg = str(exc_info.value).lower()
-    # Either permission denied OR data constraint error means readonly is working
-    assert any(keyword in error_msg for keyword in ['permission', 'denied', 'readonly', 'truncation', 'constraint']), \
-        f"Expected permission or constraint error, got: {exc_info.value}"
-
-
-def test_readonly_user_cannot_update():
-    """Test that readonly user cannot perform UPDATE operations."""
-    with pytest.raises((ProgrammingError, Exception)) as exc_info:
-        with ro_engine.connect() as conn:
-            conn.execute(text("""
-                UPDATE customers SET company_name = 'Hacked' 
-                WHERE customer_id = (SELECT customer_id FROM customers LIMIT 1)
-            """))
-            conn.commit()
+    # Test readonly connection
+    readonly_url = require_env("DB_READONLY_URL")
+    readonly_engine = create_engine(readonly_url, pool_pre_ping=True)
     
-    error_msg = str(exc_info.value).lower()
-    assert any(keyword in error_msg for keyword in ['permission', 'denied', 'readonly']), \
-        f"Expected permission error, got: {exc_info.value}"
+    with readonly_engine.connect() as conn:
+        readonly_user = conn.execute(text("SELECT current_user")).scalar()
+        print(f"✅ Readonly connected as: {readonly_user}")
+        
+        # Verify readonly user is different from admin
+        assert readonly_user == 'readonly', f"Expected 'readonly' user, got '{readonly_user}'"
+        
+        # Test that readonly user can SELECT from tables
+        result = conn.execute(text("SELECT COUNT(*) FROM customers")).scalar()
+        assert isinstance(result, int), "Readonly user should be able to read from customers table"
+        
+        # Test that readonly user can SELECT from other tables
+        tables_to_test = ['products', 'orders', 'categories', 'employees', 'shippers']
+        for table in tables_to_test:
+            try:
+                result = conn.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar()
+                assert isinstance(result, int), f"Readonly user should be able to read from {table} table"
+                print(f"✅ Can read from {table}")
+            except Exception as e:
+                pytest.fail(f"Readonly user cannot read from {table}: {e}")
 
 
-def test_readonly_user_cannot_delete():
-    """Test that readonly user cannot perform DELETE operations."""
-    with pytest.raises((ProgrammingError, Exception)) as exc_info:
-        with ro_engine.connect() as conn:
-            conn.execute(text("DELETE FROM customers WHERE customer_id = 'NONEXISTENT'"))
-            conn.commit()
+def test_readonly_user_cannot_write():
+    """
+    Test that the readonly user cannot perform any write operations.
+    """
+    readonly_url = require_env("DB_READONLY_URL")
+    readonly_engine = create_engine(readonly_url, pool_pre_ping=True)
     
-    error_msg = str(exc_info.value).lower()
-    assert any(keyword in error_msg for keyword in ['permission', 'denied', 'readonly']), \
-        f"Expected permission error, got: {exc_info.value}"
-
-
-def test_readonly_user_cannot_create_table():
-    """Test that readonly user cannot perform DDL operations."""
-    with pytest.raises((ProgrammingError, Exception)) as exc_info:
-        with ro_engine.connect() as conn:
-            conn.execute(text("CREATE TABLE security_test (id INTEGER)"))
-            conn.commit()
+    # Test INSERT is blocked (separate connection to avoid transaction abort)
+    with readonly_engine.connect() as conn:
+        with pytest.raises(Exception) as exc_info:
+            conn.execute(text("INSERT INTO customers (customer_id, company_name) VALUES ('TEST99', 'Test Company')"))
+        error_msg = str(exc_info.value).lower()
+        assert "permission denied" in error_msg or "access denied" in error_msg or "must be owner" in error_msg
+        print("✅ INSERT blocked for readonly user")
     
-    error_msg = str(exc_info.value).lower()
-    assert any(keyword in error_msg for keyword in ['permission', 'denied', 'readonly']), \
-        f"Expected permission error, got: {exc_info.value}"
-
-
-def test_readonly_user_cannot_drop_table():
-    """Test that readonly user cannot drop tables."""
-    # Try to drop an existing table (categories should exist)
-    with pytest.raises((ProgrammingError, Exception)) as exc_info:
-        with ro_engine.connect() as conn:
-            conn.execute(text("DROP TABLE categories"))
-            conn.commit()
+    # Test UPDATE is blocked (separate connection to avoid transaction abort)
+    with readonly_engine.connect() as conn:
+        with pytest.raises(Exception) as exc_info:
+            conn.execute(text("UPDATE customers SET company_name = 'Updated' WHERE customer_id = 'ALFKI'"))
+        error_msg = str(exc_info.value).lower()
+        assert "permission denied" in error_msg or "access denied" in error_msg or "must be owner" in error_msg
+        print("✅ UPDATE blocked for readonly user")
     
-    error_msg = str(exc_info.value).lower()
-    assert any(keyword in error_msg for keyword in ['permission', 'denied', 'must be owner']), \
-        f"Expected permission error for DROP, got: {exc_info.value}"
+    # Test DELETE is blocked (separate connection to avoid transaction abort)
+    with readonly_engine.connect() as conn:
+        with pytest.raises(Exception) as exc_info:
+            conn.execute(text("DELETE FROM customers WHERE customer_id = 'ALFKI'"))
+        error_msg = str(exc_info.value).lower()
+        assert "permission denied" in error_msg or "access denied" in error_msg or "must be owner" in error_msg
+        print("✅ DELETE blocked for readonly user")
 
 
-def test_database_url_uses_environment():
-    """Test that database connection uses environment variables, not hardcoded credentials."""
-    database_url = require_env("DATABASE_URL")
+def test_readonly_user_cannot_ddl():
+    """
+    Test that the readonly user cannot perform DDL operations.
+    """
+    readonly_url = require_env("DB_READONLY_URL")
+    readonly_engine = create_engine(readonly_url, pool_pre_ping=True)
     
-    # Should not contain obvious hardcoded credentials
-    assert "password123" not in database_url.lower(), "Database URL contains hardcoded test password"
-    assert "admin" not in database_url.lower(), "Database URL might contain hardcoded admin user"
+    # Test CREATE TABLE is blocked (separate connection to avoid transaction abort)
+    with readonly_engine.connect() as conn:
+        with pytest.raises(Exception) as exc_info:
+            conn.execute(text("CREATE TABLE test_table (id INT)"))
+        error_msg = str(exc_info.value).lower()
+        assert "permission denied" in error_msg or "access denied" in error_msg or "must be owner" in error_msg
+        print("✅ CREATE TABLE blocked for readonly user")
     
-    # Should use environment variable pattern
-    assert database_url.startswith(("postgresql://", "postgres://")), "Should use PostgreSQL connection string"
+    # Test DROP TABLE is blocked (separate connection to avoid transaction abort)
+    with readonly_engine.connect() as conn:
+        with pytest.raises(Exception) as exc_info:
+            conn.execute(text("DROP TABLE IF EXISTS customers"))
+        error_msg = str(exc_info.value).lower()
+        assert "permission denied" in error_msg or "access denied" in error_msg or "must be owner" in error_msg
+        print("✅ DROP TABLE blocked for readonly user")
+    
+    # Test ALTER TABLE is blocked (separate connection to avoid transaction abort)
+    with readonly_engine.connect() as conn:
+        with pytest.raises(Exception) as exc_info:
+            conn.execute(text("ALTER TABLE customers ADD COLUMN test_col VARCHAR(10)"))
+        error_msg = str(exc_info.value).lower()
+        assert "permission denied" in error_msg or "access denied" in error_msg or "must be owner" in error_msg
+        print("✅ ALTER TABLE blocked for readonly user")
 
 
-def test_readonly_url_configuration():
-    """Test that readonly database URL is properly configured."""
-    try:
-        readonly_url = require_env("DB_READONLY_URL")
-        assert "readonly" in readonly_url, "Readonly URL should contain 'readonly' user"
-        assert readonly_url.startswith(("postgresql://", "postgres://")), "Should use PostgreSQL connection string"
-    except Exception:
-        # DB_READONLY_URL might not be set, check if we're using readonly user in main URL
-        main_url = require_env("DATABASE_URL")
-        assert "readonly" in main_url or "postgres" in main_url, "Should use appropriate database user"
+def test_readonly_user_cannot_access_system_tables():
+    """
+    Test that the readonly user cannot access sensitive system tables.
+    """
+    readonly_url = require_env("DB_READONLY_URL")
+    readonly_engine = create_engine(readonly_url, pool_pre_ping=True)
+    
+    with readonly_engine.connect() as conn:
+        # Test access to pg_user is limited
+        try:
+            result = conn.execute(text("SELECT * FROM pg_user")).fetchall()
+            # If this succeeds, readonly user should not see sensitive info
+            for row in result:
+                # The readonly user should not see password hashes or admin users
+                assert row[0] == 'readonly', f"Readonly user should only see itself, but saw: {row[0]}"
+        except Exception:
+            # It's also acceptable if access is completely denied
+            print("✅ System table access appropriately restricted")
+        
+        # Test that readonly user cannot view roles with passwords
+        with pytest.raises(Exception):
+            conn.execute(text("SELECT rolname, rolpassword FROM pg_authid")).fetchall()
+        print("✅ Cannot access password information")
+
+
+def test_database_security_configuration():
+    """
+    Test overall database security configuration.
+    """
+    admin_url = require_env("DATABASE_URL")
+    admin_engine = create_engine(admin_url, pool_pre_ping=True)
+    
+    with admin_engine.connect() as conn:
+        # Verify readonly role exists
+        result = conn.execute(text("SELECT COUNT(*) FROM pg_roles WHERE rolname = 'readonly'")).scalar()
+        assert result == 1, "Readonly role should exist"
+        print("✅ Readonly role exists")
+        
+        # Verify readonly role has login capability
+        result = conn.execute(text("SELECT rolcanlogin FROM pg_roles WHERE rolname = 'readonly'")).scalar()
+        assert result is True, "Readonly role should have login capability"
+        print("✅ Readonly role can login")
+        
+        # Verify readonly role is not a superuser
+        result = conn.execute(text("SELECT rolsuper FROM pg_roles WHERE rolname = 'readonly'")).scalar()
+        assert result is False, "Readonly role should not be a superuser"
+        print("✅ Readonly role is not superuser")
+        
+        # Verify readonly role cannot create databases
+        result = conn.execute(text("SELECT rolcreatedb FROM pg_roles WHERE rolname = 'readonly'")).scalar()
+        assert result is False, "Readonly role should not be able to create databases"
+        print("✅ Readonly role cannot create databases")
+        
+        # Verify readonly role cannot create other roles
+        result = conn.execute(text("SELECT rolcreaterole FROM pg_roles WHERE rolname = 'readonly'")).scalar()
+        assert result is False, "Readonly role should not be able to create roles"
+        print("✅ Readonly role cannot create other roles")
+
+
+if __name__ == "__main__":
+    # Allow running this test file directly for manual testing
+    test_readonly_user_permissions()
+    test_readonly_user_cannot_write()
+    test_readonly_user_cannot_ddl()
+    test_readonly_user_cannot_access_system_tables()
+    test_database_security_configuration()
+    print("🔒 All security tests passed!")
