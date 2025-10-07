@@ -124,11 +124,11 @@ All tests currently pass. Previous issues were addressed:
 | Component                | Estimated Time (hours) |
 |--------------------------|-----------------------|
 | Data Engineering & ETL   | 3                     |
-| Schema Design            | 1.                    |
-| API & Backend            | 3.                    |
-| LLM Integration          | 2.5                   |
+| Schema Design            | 1                     |
+| API & Backend            | 3                     |
+| LLM Integration          | 2                     |
 | Security & Validation    | 2                     |
-| Testing & Coverage       | 3.5                   |
+| Testing & Coverage       | 4                     |
 | Documentation            | 1.5                   |
 | Debugging & Optimization | 1                     |
 | **Total**                | **17**                |
