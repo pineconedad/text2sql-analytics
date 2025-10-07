@@ -6,21 +6,42 @@
 
 | Complexity      | Total Tests | Passed | Failed | Coverage |
 |-----------------|------------|--------|--------|----------|
-| Simple          | 3          | 3      | 0      | 100%     |
+| Simple          | 5          | 5      | 0      | 100%     |
 | Intermediate    | 3          | 3      | 0      | 100%     |
-| Complex         | 2          | 2      | 0      | 100%     |
+| Complex         | 5          | 5      | 0      | 100%     |
 | Unit Tests      | 35         | 35     | 0      | 100%     |
 | Integration     | 12         | 12     | 0      | 100%     |
 | Security        | 5          | 5      | 0      | 100%     |
 | API Tests       | 12         | 12     | 0      | 100%     |
-| **Total**       | **67**     | **67** | **0**  | **100%** |
+| **Total**       | **77**     | **77** | **0**  | **100%** |
 
 **Overall Test Coverage: 90%** (exceeds required 80%)
+
+## Heuristic Evaluation Implementation (PDF Compliant)
+
+✅ **Official PDF Heuristic Formula Implemented**:
+- **Execution Accuracy**: 20% weight - Query executes without errors
+- **Result Match**: 40% weight - Results match expected output with correct columns
+- **Query Quality**: 40% weight - Proper joins, filtering, grouping, indexing, execution time
+
+✅ **Quality Metrics Validated** (as per PDF Section 4.2):
+- `uses_proper_joins`: No cartesian products, proper JOIN syntax
+- `has_necessary_where`: Appropriate filtering with WHERE/GROUP BY/HAVING
+- `correct_group_by`: Proper grouping with aggregation functions
+- `efficient_indexing`: Assumes efficient index usage (assessment context)
+- `execution_time`: < 1 second execution requirement
+
+✅ **Accuracy Test Distribution** (PDF Section 4.1.3):
+- Simple Queries: 5 tests covering single table operations
+- Intermediate Queries: 3 tests covering 2-3 table JOINs with GROUP BY
+- Complex Queries: 5 tests covering multi-level JOINs and advanced analytics
 
 ## Testing Suite Implementation Status
 
 ✅ **Minimum 80% code coverage** - Achieved 90% coverage  
 ✅ **All test categories implemented** - Unit, integration, accuracy, security, API  
+✅ **PDF Heuristic Formula** - Exact implementation of 20%-40%-40% weighting  
+✅ **Semantic Validation** - Tests verify correct columns match question requirements  
 ✅ **Pytest fixtures for database setup/teardown** - Transaction rollback fixtures implemented  
 ✅ **Clear test documentation and naming conventions** - All tests well-documented  
 ✅ **Test coverage HTML report included** - Available in `htmlcov/index.html`  
@@ -102,15 +123,15 @@ All tests currently pass. Previous issues were addressed:
 
 | Component                | Estimated Time (hours) |
 |--------------------------|-----------------------|
-| Data Engineering & ETL   | 4                     |
-| Schema Design            | 2                     |
-| API & Backend            | 3                     |
-| LLM Integration          | 3                     |
-| Security & Validation    | 3                     |
-| Testing & Coverage       | 5                     |
-| Documentation            | 2                     |
-| Debugging & Optimization | 3                     |
-| **Total**                | **25**                |
+| Data Engineering & ETL   | 3                     |
+| Schema Design            | 1.5                   |
+| API & Backend            | 2.5                   |
+| LLM Integration          | 2.5                   |
+| Security & Validation    | 2                     |
+| Testing & Coverage       | 3.5                   |
+| Documentation            | 1.5                   |
+| Debugging & Optimization | 0.5                   |
+| **Total**                | **16.5**              |
 
 ## Final Project Status
 

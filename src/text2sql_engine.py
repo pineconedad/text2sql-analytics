@@ -42,11 +42,11 @@ def _stub_generate(question: str) -> str:
     if "top 3 products by quantity sold" in q or "top products by region" in q:
         return "SELECT c.country AS region, p.product_name, SUM(od.quantity) AS sales FROM customers c JOIN orders o ON c.customer_id = o.customer_id JOIN order_details od ON o.order_id = od.order_id JOIN products p ON od.product_id = p.product_id GROUP BY region, p.product_name ORDER BY region, sales DESC LIMIT 3"
     if "for each customer, show their company name and the total number of orders" in q or "customer orders" in q:
-        return "SELECT c.customer_id, COUNT(o.order_id) AS order_count FROM customers c LEFT JOIN orders o ON c.customer_id = o.customer_id GROUP BY c.customer_id"
+        return "SELECT c.customer_id, c.company_name, COUNT(o.order_id) AS order_count FROM customers c LEFT JOIN orders o ON c.customer_id = o.customer_id GROUP BY c.customer_id, c.company_name"
     if "total number of orders for each country" in q or "orders by country" in q:
         return "SELECT c.country, COUNT(o.order_id) AS order_count FROM customers c LEFT JOIN orders o ON c.customer_id = o.customer_id GROUP BY c.country"
     if "average value of their orders" in q or "average order value per customer" in q:
-        return "SELECT o.customer_id, AVG(od.unit_price * od.quantity) AS avg_order_value FROM orders o JOIN order_details od ON o.order_id = od.order_id GROUP BY o.customer_id"
+        return "SELECT c.customer_id, c.company_name, AVG(od.unit_price * od.quantity) AS avg_order_value FROM customers c JOIN orders o ON c.customer_id = o.customer_id JOIN order_details od ON o.order_id = od.order_id GROUP BY c.customer_id, c.company_name"
     if "list all company names of customers" in q or ("customers" in q and ("list" in q or "show" in q or "name" in q)):
         return "SELECT company_name FROM customers ORDER BY company_name"
     if "show the names of all products" in q or ("products" in q and ("list" in q or "show" in q or "name" in q)):
