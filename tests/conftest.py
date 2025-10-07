@@ -23,10 +23,26 @@ def test_engine():
     engine.dispose()
 
 @pytest.fixture(scope="function")
+def db_transaction(test_engine):
+    """
+    Provide a database transaction that gets rolled back after each test.
+    This ensures tests don't affect the main database or each other.
+    """
+    conn = test_engine.connect()
+    trans = conn.begin()
+    
+    yield conn
+    
+    # Rollback transaction to undo any changes made during the test
+    trans.rollback()
+    conn.close()
+
+@pytest.fixture(scope="function")
 def clean_database(test_engine):
     """
     Clean database state before each test function.
     Truncates all tables to ensure isolated test runs.
+    (Legacy fixture - use db_transaction for better isolation)
     """
     # Clean up before test
     with test_engine.begin() as conn:
@@ -44,53 +60,53 @@ def clean_database(test_engine):
             conn.execute(text(f'TRUNCATE TABLE "{table}" RESTART IDENTITY CASCADE'))
 
 @pytest.fixture(scope="function")
-def sample_data(clean_database):
+def sample_data(db_transaction):
     """
     Insert minimal sample data for tests that need actual data.
+    Uses transaction rollback for perfect isolation.
     """
-    engine = clean_database
+    conn = db_transaction
     
-    with engine.begin() as conn:
-        # Insert sample categories
-        conn.execute(text("""
-            INSERT INTO categories (category_id, category_name, description) VALUES
-            (1, 'Test Category', 'Test Description')
-        """))
-        
-        # Insert sample customers
-        conn.execute(text("""
-            INSERT INTO customers (customer_id, company_name, contact_name, city, country) VALUES
-            ('TEST1', 'Test Company', 'Test Contact', 'Test City', 'Test Country')
-        """))
-        
-        # Insert sample employees
-        conn.execute(text("""
-            INSERT INTO employees (employee_id, employee_name, title, city, country) VALUES
-            (1, 'Test Employee', 'Test Title', 'Test City', 'Test Country')
-        """))
-        
-        # Insert sample shippers
-        conn.execute(text("""
-            INSERT INTO shippers (shipper_id, company_name) VALUES
-            (1, 'Test Shipper')
-        """))
-        
-        # Insert sample products
-        conn.execute(text("""
-            INSERT INTO products (product_id, product_name, unit_price, category_id) VALUES
-            (1, 'Test Product', 10.00, 1)
-        """))
-        
-        # Insert sample orders
-        conn.execute(text("""
-            INSERT INTO orders (order_id, customer_id, employee_id, shipper_id, freight) VALUES
-            (1, 'TEST1', 1, 1, 5.00)
-        """))
-        
-        # Insert sample order details
-        conn.execute(text("""
-            INSERT INTO order_details (order_id, product_id, unit_price, quantity, discount) VALUES
-            (1, 1, 10.00, 2, 0.0)
-        """))
+    # Insert sample categories
+    conn.execute(text("""
+        INSERT INTO categories (category_id, category_name, description) VALUES
+        (1, 'Test Category', 'Test Description')
+    """))
     
-    yield engine
+    # Insert sample customers
+    conn.execute(text("""
+        INSERT INTO customers (customer_id, company_name, contact_name, city, country) VALUES
+        ('TEST1', 'Test Company', 'Test Contact', 'Test City', 'Test Country')
+    """))
+    
+    # Insert sample employees
+    conn.execute(text("""
+        INSERT INTO employees (employee_id, employee_name, title, city, country) VALUES
+        (1, 'Test Employee', 'Test Title', 'Test City', 'Test Country')
+    """))
+    
+    # Insert sample shippers
+    conn.execute(text("""
+        INSERT INTO shippers (shipper_id, company_name) VALUES
+        (1, 'Test Shipper')
+    """))
+    
+    # Insert sample products
+    conn.execute(text("""
+        INSERT INTO products (product_id, product_name, unit_price, category_id) VALUES
+        (1, 'Test Product', 10.00, 1)
+    """))
+    
+    # Insert sample orders
+    conn.execute(text("""
+        INSERT INTO orders (order_id, customer_id, employee_id, shipper_id, freight) VALUES
+        (1, 'TEST1', 1, 1, 5.00)
+    """))
+    
+    # Insert sample order details
+    conn.execute(text("""
+        INSERT INTO order_details (order_id, product_id, unit_price, quantity, discount) VALUES
+        (1, 1, 10.00, 2, 0.0)
+    """))
+    
+    yield conn
