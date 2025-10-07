@@ -9,7 +9,7 @@ Text2SQL Engine: Generates SQL from natural language using Gemini LLM or stub fa
 import os
 from typing import Optional
 
-USE_STUB = os.getenv("USE_GEMINI_STUB", "1") == "1"  # default: stub ON
+# Dynamic check for stub mode (evaluated at runtime, not import time)
 
 # You can expand this later or generate from the DB metadata
 SCHEMA_HINT = """
@@ -64,7 +64,9 @@ def generate_sql(question: str, schema_hint: Optional[str] = None) -> str:
     Returns:
         str: SQL query string.
     """
-    if USE_STUB:
+    # Check stub mode dynamically (allows tests to change environment)
+    use_stub = os.getenv("USE_GEMINI_STUB", "1") == "1"
+    if use_stub:
         return _stub_generate(question)
 
     # ---------- REAL GEMINI PATH ----------
